@@ -9,6 +9,9 @@ Clone git repo from github to local workspace directory
    gitco https://github.com/dbader/schedule
    gitco https://github.com/dbader/schedule/
    gitco https://github.com/dbader/schedule.git
+
+   gitco dbader/schedule
+
    gitco -S https://github.com/dbader/schedule.git
 
    gitco -h
