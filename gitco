@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import argparse
+import re
+
+basedir = os.path.join(os.getenv('HOME'), 'src', 'github')
+
+def create_argparser():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-H', '--http', action='store_true', help='force http/https protocol')
+  parser.add_argument('-S', '--ssh', action='store_true', help='force ssh protocol')
+  parser.add_argument('-n', '--dry', action='store_true', help='show commmand only')
+  parser.add_argument('--here', action='store_true', help='clone into current directory')
+  parser.add_argument('repo')
+  return parser
+
+class Github(object):
+  def get_id(self):
+    return 'github'
+
+  def parse(self, repo):
+    info = {}
+    
+    if repo.startswith('https://github.com'):
+      if re.match('https://github.com/.+?/.+?/', repo):
+        repo = repo[:-1] + '.git'
+      if not repo.endswith('.git'):
+        repo = repo + '.git'
+      m = re.match('https://github.com/(.+?)/(.+?)\.git', repo)
+      info['user'] = m.group(1)
+      info['repo'] = m.group(2)
+      
+      info['url'] = repo
+      info['http'] = 'https://github.com/%(user)s/%(repo)s.git' % info
+      info['ssh'] = 'git@github.com:%(user)s/%(repo)s.git' % info
+      return info
+  
+handlers = [Github()]
+
+def clone(**params):
+  repo = params['repo']
+  args = params['args']
+
+  if args.here:
+    target = ""
+  else:
+    target = os.path.join(basedir, repo['user'], repo['repo'])
+  
+  if args.http:
+    source = repo['http']
+  elif args.ssh:
+    source = repo['ssh']
+  else:
+    source = repo['url']
+  cmd = 'git clone %s %s' % (source, target)
+  print(cmd)
+  if args.dry:
+    return
+
+  if target:
+    if not os.path.exists(os.path.dirname(target)):
+      os.makedirs(os.path.dirname(target))
+  os.system(cmd)
+
+def main():
+  cmd_parser = create_argparser()
+  args = cmd_parser.parse_args()
+  repo = args.repo
+  for u in handlers:
+    r = u.parse(repo)
+    if r != None:
+      r['handlers'] = u
+    break
+
+  if r == None:
+    return
+  clone(repo = r, args = args)
+  
+if __name__ == '__main__':
+  main()
+
+"""
+https://docs.python.org/2.7/library/argparse.html
+https://docs.python.org/2.7/library/re.html
+"""
+
+# vim:ts=2 sts=2 ai sw=2 expandtab
