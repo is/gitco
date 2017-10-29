@@ -5,14 +5,18 @@ import sys
 import argparse
 import re
 
-basedir = os.path.join(os.getenv('HOME'), 'src', 'github')
+VERSION = '0.1.r2'
+BASEDIR = os.path.join(os.getenv('HOME'), 'src', 'github')
 
 def create_argparser():
   parser = argparse.ArgumentParser()
   parser.add_argument('-H', '--http', action='store_true', help='force http/https protocol')
+  parser.add_argument('-G', '--gopath', action='store_true', help='install to gopath src dir')
+  parser.add_argument('-B', '--base', help='install base dir')
   parser.add_argument('-S', '--ssh', action='store_true', help='force ssh protocol')
   parser.add_argument('-n', '--dry', action='store_true', help='show commmand only')
   parser.add_argument('--here', action='store_true', help='clone into current directory')
+  parser.add_argument('-v', '--version', action='version', version='gitco %s' % VERSION)
   parser.add_argument('repo')
   return parser
 
@@ -36,17 +40,45 @@ class Github(object):
       info['http'] = 'https://github.com/%(user)s/%(repo)s.git' % info
       info['ssh'] = 'git@github.com:%(user)s/%(repo)s.git' % info
       return info
+    
+    # // git@github.com:makenv/docker-encoder.git
+    if repo.startswith('git@github.com:'):
+      m = re.match('git@github.com:(.+?)/(.+?).git', repo)
+      info['user'] = m.group(1)
+      info['repo'] = m.group(2)
+      
+      info['url'] = repo
+      info['http'] = 'https://github.com/%(user)s/%(repo)s.git' % info
+      info['ssh'] = 'git@github.com:%(user)s/%(repo)s.git' % info
+      return info
+
+    if re.match('[^/]+?/[^+?]', repo):
+      m = re.match("^(.+?)/(.+?)$", repo)
+      info['user'] = m.group(1)
+      info['repo'] = m.group(2)
+      info['http'] = 'https://github.com/%(user)s/%(repo)s.git' % info
+      info['ssh'] = 'git@github.com:%(user)s/%(repo)s.git' % info
+      info['url'] = info['ssh']
+      return info
+
   
 handlers = [Github()]
 
 def clone(**params):
   repo = params['repo']
   args = params['args']
+  
+  repo['path'] = os.path.join(repo['user'], repo['repo'])
 
-  if args.here:
+  if args.base:
+    target = os.path.join(args.base, repo['path'])
+  elif args.here:
     target = ""
+  elif args.gopath:
+    target = os.getenv('GOPATH')
+    target = target.split(':')[0]
   else:
-    target = os.path.join(basedir, repo['user'], repo['repo'])
+    target = os.path.join(BASEDIR, repo['path'])
   
   if args.http:
     source = repo['http']
@@ -67,6 +99,10 @@ def clone(**params):
 def main():
   cmd_parser = create_argparser()
   args = cmd_parser.parse_args()
+  if args.version:
+    print("gitco %s" % VERSION)
+    os.exit(0)
+
   repo = args.repo
   for u in handlers:
     r = u.parse(repo)
