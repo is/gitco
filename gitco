@@ -99,9 +99,6 @@ def clone(**params):
 def main():
   cmd_parser = create_argparser()
   args = cmd_parser.parse_args()
-  if args.version:
-    print("gitco %s" % VERSION)
-    os.exit(0)
 
   repo = args.repo
   for u in handlers:
